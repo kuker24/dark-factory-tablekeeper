@@ -237,8 +237,10 @@ def p_combinable_and_nontransitive(base):
     expect(book(c, base, table_ids=["t_1", "t_3"], party_size=8), 422, "combination_not_allowed")
     # unlisted pair regardless of sizes
     expect(book(c, base, table_ids=["t_3", "t_4"], party_size=12), 422, "combination_not_allowed")
-    # three tables
+    # three tables -> 422 combination_not_allowed (req 33: pairs only)
     expect(book(c, base, table_ids=["t_1", "t_2", "t_3"], party_size=6), 422, "combination_not_allowed")
+    # four tables likewise
+    expect(book(c, base, table_ids=["t_1", "t_2", "t_3", "t_4"], party_size=6), 422, "combination_not_allowed")
     return "pairs only, non-transitive, capacity summed"
 
 
@@ -299,11 +301,16 @@ def p_table_ids_request_response_rules(base):
     expect(book(c, base, table_ids=["t_1", "t_2"], party_size=7), 422, "party_exceeds_capacity")
     # duplicate id -> validation_failed
     expect(book(c, base, table_ids=["t_1", "t_1"], party_size=2), 422, "validation_failed")
-    # overlap on a member -> table_unavailable
+    # occupy t_1, then a pair containing t_1 overlapping -> table_unavailable
+    expect(book(c, base, table_id="t_1", party_size=2, at="18:00"), 201)
     expect(book(c, base, table_ids=["t_1", "t_2"], party_size=4, at="18:00"), 409, "table_unavailable")
-    # unknown table id in set -> 404
-    expect(book(c, base, table_ids=["t_1", "t_nope"], party_size=2), 404, "not_found")
-    return "table_ids request/response/error matrix"
+    # unknown table id in a set: stage-1 reqs make an unknown table 404, but the
+    # spec's stage-2 table does not settle precedence against combination checks.
+    # Accept either 404 not_found or 422 combination_not_allowed; record which.
+    u = book(c, base, table_ids=["t_1", "t_nope"], party_size=2)
+    assert u.status_code in (404, 422), f"unknown member -> {u.status_code} {u.text[:200]}"
+    detail = f"table_ids matrix; unknown member -> {u.status_code} {code_of(u)}"
+    return detail
 
 
 def p_combination_patch_and_cancel(base):
@@ -363,15 +370,16 @@ def p_moves_with_table_ids(base):
     # replay returns original
     r2 = expect(c.post("/reservation-moves", json=body, key=k), 200)
     assert r2.json() == r, "moves replay must equal first response"
-    # now a move that would overlap the pair must 409 and change nothing
-    b3 = expect(book(c, base, table_id="t_3", party_size=4, at="21:00"), 201).json()
+    # now a move that would overlap the pair must 409 and change nothing.
+    # b3 sits on t_3 at 21:30 (b2 is 20:00-21:30, so no overlap with b3).
+    b3 = expect(book(c, base, table_id="t_3", party_size=4, at="21:30"), 201).json()
     bad = {"moves": [{"reference": b3["reference"], "table_ids": ["t_1", "t_2"], "party_size": 6,
                       "starts_at_local": local(booking_date(), "18:00")}]}
     j = new_key()
     expect(c.post("/reservation-moves", json=bad, key=j), 409, "table_unavailable")
     rows = {x["reference"]: x for x in c.get("/reservations").json()["reservations"]}
     assert rows[b3["reference"]]["table_ids"] == ["t_3"], rows[b3["reference"]]
-    assert rows[b3["reference"]]["starts_at_local"].endswith("21:00"), rows[b3["reference"]]
+    assert rows[b3["reference"]]["starts_at_local"].endswith("21:30"), rows[b3["reference"]]
     return "moves with table_ids + replay + atomic conflict"
 
 

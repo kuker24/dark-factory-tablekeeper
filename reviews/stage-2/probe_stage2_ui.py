@@ -153,10 +153,7 @@ def p_routes_and_auth(run):
     # auth-error absent without an error
     page.goto("/login")
     assert q(page, "auth-error") is None, "auth-error present with no error"
-    # bad login shows auth-error
-    log_in(page, password="wrong password")
-    # wrong password: wait for auth-error instead of current-user
-    page.goto("/login")
+    # wrong password: wait for auth-error, no sign-in
     page.fill(sel("login-email"), ADA["email"])
     page.fill(sel("login-password"), "wrong password")
     page.click(sel("login-submit"))
@@ -176,7 +173,7 @@ def p_routes_and_auth(run):
 
 
 def p_grid_cells_and_data_available(run):
-    page, base = run["base"], run["base"]
+    page, base = run["page"], run["base"]
     reset(base, fixture(restaurants=[restaurant(combinable=[["t_1", "t_2"]])]))
     date = booking_date()
     search(page, date=date, party_size=4)
