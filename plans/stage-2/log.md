@@ -1,0 +1,1 @@
+2026-10-02T23:37:25Z rev db86eb1 REJECT: F1 booking form never visible (#book hidden never cleared); F2 no cells for unavailable tables (data-available=false never emitted); F3 signed-out cell click is a no-op (req 16); F4 >2 table_ids returns validation_failed instead of combination_not_allowed.

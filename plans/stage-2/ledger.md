@@ -93,3 +93,5 @@ Stage-1 spec remains binding; all stage-1 ledger entries 1–67 still hold unles
 ## Status
 
 - [ ] WI-1 dispatched to Coder; Reviewer briefed in parallel.
+
+Decision E13 (from Reviewer question, 2026-10-02): unknown table id inside table_ids returns 404 not_found (stage-1 req 46 remains binding: unknown table or table of another restaurant -> 404). Check order: (a) every member exists and belongs to the restaurant, else 404 not_found; (b) at most two tables, else 422 combination_not_allowed; (c) duplicate member, else 422 validation_failed; (d) pair must be listed in combinable, else 422 combination_not_allowed; (e) capacity/occupancy as specified.
