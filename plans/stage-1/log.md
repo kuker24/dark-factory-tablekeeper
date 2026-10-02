@@ -1,0 +1,1 @@
+2026-10-02T2? 2026-10-02T22:46:51Z rev d76146c2 REJECT: (1) wrong-JSON-type restaurant_id/table_id return 422 instead of 400 malformed_request (req 11, §5); (2) idempotency replay identity ignores request path — same key+body on different path must be a new request, not a replay/409 (req 29, §7).
