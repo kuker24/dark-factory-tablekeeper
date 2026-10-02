@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Seat-side `jam` shim: a `send` must name the seat's own --session (otherwise it would post as
+# the signed-in human owner). Everything else goes to the real CLI unchanged.
+SELF=$(readlink -f "$0")
+REAL=$(PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vx "$(dirname "$SELF")" | paste -sd:) command -v jam)
+args=" $* "
+if [[ "$args" == *" send "* && "$args" != *" --session "* && "$args" != *" --session="* ]]; then
+  echo "REFUSED by the seat shim: 'jam send' without --session posts as the HUMAN owner. Nothing was sent." >&2
+  echo "Use: jam --profile default --session <your seat name in lower case> send <room id> --body-file <file>" >&2
+  exit 2
+fi
+exec "$REAL" "$@"

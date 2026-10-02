@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Seat-side `band` shim (on PATH only inside seat runtimes, via acp-reply-gate.py).
+# The band CLI on this machine is signed in as the human owner, so a seat that posts with a
+# human-scoped command would speak AS THE HUMAN. Those commands are refused here; everything
+# else (reading messages, agent-scoped commands with --session/--as) goes to the real CLI.
+REAL=${BAND_REAL:-}
+if [ -z "$REAL" ]; then
+  SELF=$(readlink -f "$0")
+  REAL=$(PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vx "$(dirname "$SELF")" | paste -sd:) command -v band)
+fi
+args=" $* "
+refuse() {
+  echo "REFUSED by the seat shim: '$1' posts as the HUMAN owner, not as you. Nothing was sent." >&2
+  echo "Send as your own seat with the command from your session briefing, for example:" >&2
+  echo "  jam --profile default --session <your seat name in lower case> send <room id> --body-file <file>" >&2
+  echo "and confirm it prints 'sent <id>'." >&2
+  exit 2
+}
+# subcommand words = first two arguments that are not options (message text cannot shift them)
+words=(); for x in "$@"; do [[ "$x" == -* ]] && continue; words+=("$x"); [ ${#words[@]} -ge 2 ] && break; done
+sub="${words[0]:-} ${words[1]:-}"
+case "$sub" in
+  "room send") refuse "band room send" ;;
+  "send "*|"chat send")
+    [[ "$args" == *" --session "* || "$args" == *" --session="* ]] || refuse "band send without --session" ;;
+esac
+exec "$REAL" "$@"
