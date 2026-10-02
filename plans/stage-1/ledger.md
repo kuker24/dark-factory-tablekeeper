@@ -111,4 +111,5 @@ Base revision: b75c47f (factory scaffolding, no product code).
 
 ## Status
 
-- [ ] WI-1 dispatched to Coder; Reviewer briefed in parallel.
+- [x] WI-1 complete. Accepted by the Reviewer at revision 883364bfbd4fa0878678de31984748acfa8afa8c (2026-10-03); official check on a fresh clone: "claimed stage: 1", stage 1: pass, 120/120 tests passed, 0 failed. All 67 ledger entries covered; no known gaps.
+- Rejections: 1 (rev d76146c2 — wrong-JSON-type IDs returned 422 instead of 400; idempotency replay identity ignored the request path; both fixed in 883364bf).
