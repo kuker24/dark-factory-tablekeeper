@@ -268,6 +268,161 @@ def test_missing_idempotency_key_is_400() -> None:
         server.shutdown()
 
 
+# ---- Wrong-type ID fields return 400 (Finding 1) -------------------------
+
+
+def test_wrong_type_restaurant_id_is_malformed_request() -> None:
+    """Per §5: a non-string ``restaurant_id`` is 400 ``malformed_request``,
+    not 422 ``validation_failed``. Missing field (``None``) is 422."""
+    server, host, port = _start_server()
+    try:
+        conn = HTTPConnection(host, port)
+        token, rid, tid = _bootstrap(port)
+        for bad in [17, True, []]:
+            status, body = _request(
+                conn, "POST", "/reservations",
+                {"restaurant_id": bad, "table_id": tid,
+                 "starts_at_local": "2099-06-01T18:00", "party_size": 2},
+                {"Authorization": f"Bearer {token}",
+                 "Idempotency-Key": f"k{bad}"})
+            assert status == 400, (bad, body)
+            assert body["error"]["code"] == "malformed_request", (bad, body)
+        # Missing field → 422 validation_failed (not 400).
+        status, body = _request(
+            conn, "POST", "/reservations",
+            {"table_id": tid,
+             "starts_at_local": "2099-06-01T18:00", "party_size": 2},
+            {"Authorization": f"Bearer {token}",
+             "Idempotency-Key": "kmissing"})
+        assert status == 422, body
+        assert body["error"]["code"] == "validation_failed", body
+    finally:
+        server.shutdown()
+
+
+def test_wrong_type_table_id_is_malformed_request() -> None:
+    server, host, port = _start_server()
+    try:
+        conn = HTTPConnection(host, port)
+        token, rid, tid = _bootstrap(port)
+        status, body = _request(
+            conn, "POST", "/reservations",
+            {"restaurant_id": rid, "table_id": 17,
+             "starts_at_local": "2099-07-01T18:00", "party_size": 2},
+            {"Authorization": f"Bearer {token}",
+             "Idempotency-Key": "k1"})
+        assert status == 400, body
+        assert body["error"]["code"] == "malformed_request", body
+    finally:
+        server.shutdown()
+
+
+def test_wrong_type_table_id_in_moves_is_malformed_request() -> None:
+    """Same wrong-type rule applies to ``table_id`` inside
+    ``POST /reservation-moves``."""
+    server, host, port = _start_server()
+    try:
+        conn = HTTPConnection(host, port)
+        token, rid, tid = _bootstrap(port)
+        # Make a reservation to move.
+        status, body = _request(
+            conn, "POST", "/reservations",
+            {"restaurant_id": rid, "table_id": tid,
+             "starts_at_local": "2099-08-01T18:00", "party_size": 2},
+            {"Authorization": f"Bearer {token}",
+             "Idempotency-Key": "create1"})
+        assert status == 201, body
+        ref = body["reference"]
+        # Move with a non-string table_id.
+        status, body = _request(
+            conn, "POST", "/reservation-moves",
+            {"moves": [{"reference": ref, "table_id": 17}]},
+            {"Authorization": f"Bearer {token}",
+             "Idempotency-Key": "move1"})
+        assert status == 400, body
+        assert body["error"]["code"] == "malformed_request", body
+    finally:
+        server.shutdown()
+
+
+def test_wrong_type_reference_in_moves_is_malformed_request() -> None:
+    server, host, port = _start_server()
+    try:
+        conn = HTTPConnection(host, port)
+        token, rid, tid = _bootstrap(port)
+        status, body = _request(
+            conn, "POST", "/reservation-moves",
+            {"moves": [{"reference": 17, "table_id": tid}]},
+            {"Authorization": f"Bearer {token}",
+             "Idempotency-Key": "movebad"})
+        assert status == 400, body
+        assert body["error"]["code"] == "malformed_request", body
+    finally:
+        server.shutdown()
+
+
+# ---- Idempotency is path-scoped (Finding 2) ------------------------------
+
+
+def test_idempotency_key_reused_on_different_path_is_a_fresh_request() -> None:
+    """Per §7: replay = same user + same key + same method+path+body.
+    The same key on a different path must be treated as a new request."""
+    server, host, port = _start_server()
+    try:
+        conn = HTTPConnection(host, port)
+        token, rid, tid = _bootstrap(port)
+        # Make a reservation with idempotency key "K".
+        status, body = _request(
+            conn, "POST", "/reservations",
+            {"restaurant_id": rid, "table_id": tid,
+             "starts_at_local": "2099-09-01T18:00", "party_size": 2},
+            {"Authorization": f"Bearer {token}",
+             "Idempotency-Key": "K"})
+        assert status == 201, body
+        ref = body["reference"]
+
+        # Reuse key "K" on /reservation-moves with a valid (same-body, but
+        # different path) move. This must NOT replay the previous receipt;
+        # it must run the move normally and succeed.
+        status, body = _request(
+            conn, "POST", "/reservation-moves",
+            {"moves": [{"reference": ref}]},
+            {"Authorization": f"Bearer {token}",
+             "Idempotency-Key": "K"})
+        assert status == 201, body
+        assert "reservations" in body
+    finally:
+        server.shutdown()
+
+
+def test_idempotency_key_reused_same_path_different_body_is_409() -> None:
+    """Per §7: same key, same path, different body → 409 ``idempotency_key_reuse``."""
+    server, host, port = _start_server()
+    try:
+        conn = HTTPConnection(host, port)
+        token, rid, tid = _bootstrap(port)
+        # First call: book a reservation.
+        status, body = _request(
+            conn, "POST", "/reservations",
+            {"restaurant_id": rid, "table_id": tid,
+             "starts_at_local": "2099-10-01T18:00", "party_size": 2},
+            {"Authorization": f"Bearer {token}",
+             "Idempotency-Key": "SAME"})
+        assert status == 201, body
+
+        # Second call: same key, same path, different body → 409.
+        status, body = _request(
+            conn, "POST", "/reservations",
+            {"restaurant_id": rid, "table_id": tid,
+             "starts_at_local": "2099-10-01T18:30", "party_size": 4},
+            {"Authorization": f"Bearer {token}",
+             "Idempotency-Key": "SAME"})
+        assert status == 409, body
+        assert body["error"]["code"] == "idempotency_key_reuse", body
+    finally:
+        server.shutdown()
+
+
 # ---- Reset clears everything ----------------------------------------------
 
 

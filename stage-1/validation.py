@@ -55,12 +55,27 @@ def is_valid_reference(value: Any) -> bool:
 
 
 def check_id(field: str, value: Any) -> str:
+    """An opaque 1..64-character identifier.
+
+    Per §5, a value of the wrong JSON type (int, bool, list, …) is 400
+    ``malformed_request``. A missing field (``None``) and a string of
+    the wrong shape are 422 ``validation_failed`` — the field is
+    expected but not present or not valid.
+    """
+    if value is None:
+        raise ValidationFailed(f"{field!r} is required")
+    if not isinstance(value, str):
+        raise MalformedRequest(f"{field!r} must be a string")
     if not is_valid_id(value):
         raise ValidationFailed(f"{field!r} must be 1..64 opaque characters")
     return value
 
 
 def check_reference(field: str, value: Any) -> str:
+    if value is None:
+        raise ValidationFailed(f"{field!r} is required")
+    if not isinstance(value, str):
+        raise MalformedRequest(f"{field!r} must be a string")
     if not is_valid_reference(value):
         raise ValidationFailed(f"{field!r} must match ^[A-Z0-9]{{6,12}}$")
     return value

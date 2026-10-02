@@ -52,7 +52,7 @@ class State:
         self._reservations: dict[str, dict] = {}         # reference -> reservation record
         self._reservations_by_user: dict[str, set[str]] = {}
         self._reservations_by_restaurant: dict[str, set[str]] = {}
-        self._idempotency: dict[str, dict[str, dict]] = {}   # user_id -> key -> receipt
+        self._idempotency: dict[str, dict[str, dict[str, dict]]] = {}   # user_id -> key -> path -> receipt
 
     # ---- lock helpers --------------------------------------------------
 

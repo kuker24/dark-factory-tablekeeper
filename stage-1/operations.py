@@ -442,9 +442,15 @@ def _reservation_payload(res: dict) -> dict:
     }
 
 
-def _idempotency_lookup(state, user_id: str, key: str, body: dict):
+def _idempotency_lookup(state, user_id: str, key: str, path: str, body: dict):
     """Return ``(receipt, replay_status)`` for an idempotent replay, or
     ``(None, None)``.
+
+    Per ledger §7, replay = same user, same key, same method+path+body.
+    A key reused on a different path is treated as a fresh request (no
+    receipt match), so a ``POST /reservation-moves`` after a
+    ``POST /reservations`` with the same key is not a replay. A key
+    reused on the same path with a different body is 409.
 
     ``replay_status`` is 200 even when the original request was 201, per
     the spec's "replay returns same body, status 200 vs first 201"
@@ -452,7 +458,8 @@ def _idempotency_lookup(state, user_id: str, key: str, body: dict):
     mutable state.
     """
     bucket = state._idempotency.get(user_id, {})
-    rec = bucket.get(key)
+    path_bucket = bucket.get(key, {})
+    rec = path_bucket.get(path)
     if rec is None:
         return None, None
     if rec["body"] != body:
@@ -461,9 +468,11 @@ def _idempotency_lookup(state, user_id: str, key: str, body: dict):
     return rec, 200
 
 
-def _idempotency_store(state, user_id: str, key: str, body: dict,
+def _idempotency_store(state, user_id: str, key: str, path: str, body: dict,
                        status_code: int, response_body: dict) -> None:
-    state._idempotency.setdefault(user_id, {})[key] = {
+    bucket = state._idempotency.setdefault(user_id, {})
+    path_bucket = bucket.setdefault(key, {})
+    path_bucket[path] = {
         "body": body,
         "status_code": status_code,
         "response": response_body,
@@ -491,7 +500,7 @@ def create_reservation(state, *, user_id: str, body: dict,
         # Idempotency lookup happens under the lock so two concurrent
         # requests with the same unused key serialise: exactly one wins
         # the race and stores the receipt, the other sees it on lookup.
-        receipt, replay_status = _idempotency_lookup(state, user_id, idempotency_key, body)
+        receipt, replay_status = _idempotency_lookup(state, user_id, idempotency_key, "POST /reservations", body)
         if receipt is not None:
             return OperationResult(replay_status, receipt["response"])
 
@@ -550,7 +559,7 @@ def create_reservation(state, *, user_id: str, body: dict,
         state._reservations_by_user.setdefault(user_id, set()).add(reference)
         state._reservations_by_restaurant.setdefault(rid, set()).add(reference)
         payload = _reservation_payload(reservation)
-        _idempotency_store(state, user_id, idempotency_key, body, 201, payload)
+        _idempotency_store(state, user_id, idempotency_key, "POST /reservations", body, 201, payload)
         return OperationResult(201, payload)
 
 
@@ -717,7 +726,7 @@ def _has_overlap_excluding(state, rid: str, table_id: str, start: dt.datetime,
 def moves(state, *, user_id: str, body: dict,
           idempotency_key: str) -> OperationResult:
     with state.lock():
-        receipt, replay_status = _idempotency_lookup(state, user_id, idempotency_key, body)
+        receipt, replay_status = _idempotency_lookup(state, user_id, idempotency_key, "POST /reservation-moves", body)
         if receipt is not None:
             return OperationResult(replay_status, receipt["response"])
 
@@ -815,7 +824,7 @@ def moves(state, *, user_id: str, body: dict,
         for ref in refs:
             output.append(_reservation_payload(state._reservations[ref]))
         payload = {"reservations": output}
-        _idempotency_store(state, user_id, idempotency_key, body, 201, payload)
+        _idempotency_store(state, user_id, idempotency_key, "POST /reservation-moves", body, 201, payload)
         return OperationResult(201, payload)
 
 
