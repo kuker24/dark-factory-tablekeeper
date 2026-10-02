@@ -304,13 +304,15 @@ def p_table_ids_request_response_rules(base):
     # occupy t_1, then a pair containing t_1 overlapping -> table_unavailable
     expect(book(c, base, table_id="t_1", party_size=2, at="18:00"), 201)
     expect(book(c, base, table_ids=["t_1", "t_2"], party_size=4, at="18:00"), 409, "table_unavailable")
-    # unknown table id in a set: stage-1 reqs make an unknown table 404, but the
-    # spec's stage-2 table does not settle precedence against combination checks.
-    # Accept either 404 not_found or 422 combination_not_allowed; record which.
-    u = book(c, base, table_ids=["t_1", "t_nope"], party_size=2)
-    assert u.status_code in (404, 422), f"unknown member -> {u.status_code} {u.text[:200]}"
-    detail = f"table_ids matrix; unknown member -> {u.status_code} {code_of(u)}"
-    return detail
+    # E13(a): an unknown member must be 404 not_found, resolved before the
+    # pair-combinable check.
+    expect(book(c, base, table_ids=["t_1", "t_nope"], party_size=2), 404, "not_found")
+    # E13(c) before (d): duplicate member is 422 validation_failed even when the
+    # pair is also not combinable.
+    expect(book(c, base, table_ids=["t_1", "t_1"], party_size=2), 422, "validation_failed")
+    # E13(b): three ids -> combination_not_allowed, not validation_failed.
+    expect(book(c, base, table_ids=["t_1", "t_2", "t_3"], party_size=2), 422, "combination_not_allowed")
+    return "table_ids matrix incl. E13 check order"
 
 
 def p_combination_patch_and_cancel(base):

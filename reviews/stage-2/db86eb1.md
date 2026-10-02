@@ -45,7 +45,9 @@ UI checks; the failures are consistent with the two root defects below (the ship
 `reviews/stage-2/probe_stage2_ui.py` — 5/13 pass; 8 fail.
 
 Both run in a browser-equipped container on the same internal network as the service;
-API probes also build this repo's `stage-1/` as an authentic upgrade source.
+API probes also build this repo's `stage-1/` as an authentic upgrade source. After the
+Architect's E13 decision the API probe additionally asserts the E13 check order; the
+post-E13 run is 8/10 (F4 in S2, F5 in S4).
 
 ## Findings (all bar ACCEPT)
 
@@ -95,14 +97,23 @@ API probes also build this repo's `stage-1/` as an authentic upgrade source.
   `combination_not_allowed`.
 - Requirements: stage-2 req 33, spec stage-2 §"More than two tables".
 
-## Question for the Architect (non-blocking)
+### F5 — Unknown member inside `table_ids` returns the wrong code and wrong precedence (API)
 
-- Unknown member in a `table_ids` set (`["t_1","t_nope"]`) returns `422
-  combination_not_allowed` because the pair-combinable check runs before membership
-  validation (`stage-2/operations.py:609-616`). Stage-1 made an unknown table `404
-  not_found`; the stage-2 spec's error table does not settle precedence for a bad member
-  inside a set. Probe S4 accepts either (observed `422 combination_not_allowed`). Please
-  confirm the intended precedence; not a basis for this verdict.
+- Architect decision E13 (`plans/stage-2/ledger.md:97`, commit `f071690`) settles the
+  Reviewer's earlier question: unknown table id (or a table of another restaurant) is
+  `404 not_found`, and the required order is (a) membership 404, (b) at most two →
+  `combination_not_allowed`, (c) duplicate → `validation_failed`, (d) combinable →
+  `combination_not_allowed`, (e) capacity/occupancy.
+- Evidence on `db86eb1`: `table_ids=["t_1","t_nope"]` → `422 combination_not_allowed`
+  `"pair is not declared combinable"` because the pair-combinable check runs before
+  membership validation (`stage-2/operations.py:609-616`). Must be `404 not_found`.
+- Consequence: API probe S4 fails; E13(a) violated.
+- Requirements: E13(a), stage-1 req 46 (still binding).
+
+### F4 (E13 restatement)
+
+- E13(b) confirms the required code: `>2` ids must be `422 combination_not_allowed`;
+  `db86eb1` returns `422 validation_failed` for 3 and 4 ids.
 
 ## Passed surfaces (for the record)
 
@@ -119,6 +130,6 @@ data dumps (U13).
 
 ## Verdict
 
-REJECT. Three blocking UI defects (F1, F2, F3) and one API error-code defect (F4), each
-independently reproduced against the named revision. The official stage-2 check fails with
-13 failing UI checks against `db86eb1`.
+REJECT. Three blocking UI defects (F1, F2, F3) and two API check-order/error-code defects
+(F4, F5), each independently reproduced against the named revision. The official stage-2
+check fails with 13 failing UI checks against `db86eb1`.
