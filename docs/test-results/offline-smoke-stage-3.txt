@@ -1,0 +1,48 @@
+== build (network allowed during build) ==
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 250B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.12-alpine
+#2 DONE 0.1s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 288B done
+#4 DONE 0.0s
+
+#5 [1/4] FROM docker.io/library/python:3.12-alpine@sha256:0687a6bc9716edc2a6ee0fbfb0f87e7ee358b262b67c9215de91bc9b2d38ba71
+#5 resolve docker.io/library/python:3.12-alpine@sha256:0687a6bc9716edc2a6ee0fbfb0f87e7ee358b262b67c9215de91bc9b2d38ba71 0.0s done
+#5 DONE 0.0s
+
+#6 [2/4] WORKDIR /app
+#6 CACHED
+
+#7 [3/4] COPY time_utils.py validation.py passwords.py state_core.py operations.py app.py /app/
+#7 DONE 0.0s
+
+#8 [4/4] COPY static/ /app/static/
+#8 DONE 0.0s
+
+#9 exporting to image
+#9 exporting layers 0.0s done
+#9 exporting manifest sha256:5f1b9cd6736671c83f82113c7aca8191816d784b1daac2028da21bd47941cb99 done
+#9 exporting config sha256:76110989d29cdff6a4dc16872fec6e2da72fee98f1aa08e4968d74a580459e79 done
+#9 exporting attestation manifest sha256:7d23e424fc26c6b0bede1cc6481c407c0abe0355234cd36295e3c974a521455f done
+#9 exporting manifest list sha256:5867d631575e41d6d1522234a2688be6cc1354d2fa54e62eaf1fd51e5e110d64 done
+#9 naming to docker.io/library/df-smoke-stage-3:latest done
+#9 unpacking to docker.io/library/df-smoke-stage-3:latest 0.0s done
+#9 DONE 0.1s
+== test A: --network none (container has no network at all) ==
+tablekeeper stage-2 listening on 0.0.0.0:8080
+OK: container still running with --network none
+sh: curl: not found
+WARN: no python/wget/curl in image to probe from inside; use test B
+== test B: internal network (no outbound), probed from a sibling container ==
+{"status":"ok"}
+OK: healthy after ~2s on an internal (no-outbound) network

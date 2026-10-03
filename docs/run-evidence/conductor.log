@@ -1,0 +1,8 @@
+2026-10-03 05:28:12 WIB [8534579b] conductor start (state /workspace/band-work/final-result.conductor.json) stages 1..4
+2026-10-03 05:28:12 WIB [8534579b] stage 1 dispatched (22051 chars, task file /workspace/band-work/scratch/owner/task-final-result-s1.md); spend $212.57: sent to 8534579b-da69-4e79-9e34-4a4e2860a91a
+2026-10-03 06:00:16 WIB [8534579b] stage 1 REPORT received: REPORT
+2026-10-03 06:01:07 WIB [8534579b] stage 1 owner isolated check at 2812a85: claimed 1 {'1': '120/120'}; 32.1 min, $7.4
+2026-10-03 06:01:07 WIB [8534579b] stage 2 dispatched (13531 chars, task file /workspace/band-work/scratch/owner/task-final-result-s2.md); spend $219.97: sent to 8534579b-da69-4e79-9e34-4a4e2860a91a
+2026-10-03 09:01:10 WIB [8534579b] stage 2 REPORT received: REPORT
+2026-10-03 09:02:12 WIB [8534579b] stage 2 owner isolated check at aeae6e0: claimed 2 {'1': '120/120', '2': '25/25'}; 180.1 min, $15.23
+2026-10-03 09:02:12 WIB [8534579b] stage 3 dispatched (16191 chars, task file /workspace/band-work/scratch/owner/task-final-result-s3.md); spend $235.2: sent to 8534579b-da69-4e79-9e34-4a4e2860a91a

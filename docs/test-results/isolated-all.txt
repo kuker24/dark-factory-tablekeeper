@@ -1,0 +1,32 @@
+stage-1/ ...
+building <fresh clone>/stage-1 ...
+  stage 1: pass  (log: <tmp>/all/stage-1/stage-1.log)
+  stage 2: fail  (log: <tmp>/all/stage-1/stage-2.log)
+highest contiguous stage: 1
+claimed stage: 1 on the shipped checks
+report: <tmp>/all/stage-1/report.json
+stage-2/ ...
+building <fresh clone>/stage-2 ...
+  stage 1: pass  (log: <tmp>/all/stage-2/stage-1.log)
+building upgrade source <fresh clone>/stage-1 ...
+  stage 2: pass  (log: <tmp>/all/stage-2/stage-2.log)
+  stage 3: fail  (log: <tmp>/all/stage-2/stage-3.log)
+highest contiguous stage: 2
+claimed stage: 2 on the shipped checks
+report: <tmp>/all/stage-2/report.json
+stage-3/ ...
+building <fresh clone>/stage-3 ...
+  stage 1: pass  (log: <tmp>/all/stage-3/stage-1.log)
+building upgrade source <fresh clone>/stage-1 ...
+  stage 2: pass  (log: <tmp>/all/stage-3/stage-2.log)
+building upgrade source <fresh clone>/stage-2 ...
+  stage 3: pass  (log: <tmp>/all/stage-3/stage-3.log)
+  stage 4: fail  (log: <tmp>/all/stage-3/stage-4.log)
+highest contiguous stage: 3
+claimed stage: 3 on the shipped checks
+report: <tmp>/all/stage-3/report.json
+  stage-1/: claims stage 1 on the shipped checks
+  stage-2/: claims stage 2 on the shipped checks
+  stage-3/: claims stage 3 on the shipped checks
+summary: <tmp>/all/summary.json
+NOTE: this run only includes a portion of the full tests that are applied before judging; this is meant to provide directional feedback, and ultimately you may not pass the stage with the full set of tests.

@@ -1,0 +1,7 @@
+building <fresh clone>/stage-1 ...
+  stage 1: pass  (log: <tmp>/s1/stage-1.log)
+  stage 2: fail  (log: <tmp>/s1/stage-2.log)
+highest contiguous stage: 1
+claimed stage: 1 on the shipped checks
+report: <tmp>/s1/report.json
+NOTE: this run only includes a portion of the full tests that are applied before judging; this is meant to provide directional feedback, and ultimately you may not pass the stage with the full set of tests.

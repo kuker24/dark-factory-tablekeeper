@@ -1,0 +1,87 @@
+{
+  "revision": "df038d970b7dfb7e37a28217a5484d06debe8470",
+  "track": "tablekeeper",
+  "stages": {
+    "1": "pass",
+    "2": "pass"
+  },
+  "highest_contiguous": 2,
+  "started_at": "2026-10-03T03:01:22.942716+00:00",
+  "finished_at": "2026-10-03T03:02:23.159707+00:00",
+  "schema_version": 2,
+  "run_id": "e7e89676fe124b1baae2e417871c29db",
+  "mode": "isolated",
+  "provenance": "working-tree",
+  "state": "completed",
+  "pytest_args": [],
+  "suite_digest": "91f4007512983b527d0f60633e006572f9a3ac7ae4f903df22d13614656f6c06",
+  "checks": {
+    "1": {
+      "collected": 120,
+      "passed": 120,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "deselected": 0,
+      "xfailed": 0,
+      "files": {
+        "stage_1/test_health_reset_auth.py": {
+          "passed": 12,
+          "total": 12
+        },
+        "stage_1/test_reservations.py": {
+          "passed": 37,
+          "total": 37
+        },
+        "stage_1/test_restaurants_availability.py": {
+          "passed": 18,
+          "total": 18
+        },
+        "stage_1/test_retries_time_input.py": {
+          "passed": 20,
+          "total": 20
+        },
+        "stage_1/test_sample.py": {
+          "passed": 20,
+          "total": 20
+        },
+        "stage_1/test_seeded_state.py": {
+          "passed": 13,
+          "total": 13
+        }
+      }
+    },
+    "2": {
+      "collected": 25,
+      "passed": 25,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "deselected": 0,
+      "xfailed": 0,
+      "files": {
+        "stage_2/test_sample.py": {
+          "passed": 8,
+          "total": 8
+        },
+        "stage_2/test_ui.py": {
+          "passed": 17,
+          "total": 17
+        }
+      }
+    }
+  },
+  "overshoot": null,
+  "claimed_stage": "2",
+  "share": 1.0,
+  "upgrade_sources": {
+    "2": {
+      "folder": "/tmp/eval-ji1S/clone/stage-1",
+      "revision": "df038d970b7dfb7e37a28217a5484d06debe8470"
+    },
+    "3": {
+      "folder": "/tmp/eval-ji1S/clone/stage-2",
+      "revision": "df038d970b7dfb7e37a28217a5484d06debe8470"
+    }
+  }
+}
