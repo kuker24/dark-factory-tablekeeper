@@ -92,9 +92,8 @@ def _render_index() -> bytes:
             + "</label>"
             + "<button id=\"search-button\" data-testid=\"search-button\" "
             + "type=\"button\">Search</button>"
-            + "<div id=\"availability-grid\" data-testid=\"availability-grid\">"
+            + "<div id=\"availability-host\" data-testid=\"availability-host\">"
             + "</div>"
-            + "<div id=\"no-slots\" data-testid=\"no-slots\" hidden>No slots.</div>"
             + "</section>"
             + "</main><script src=\"/static/app.js\"></script></body></html>"
             ).encode("utf-8")

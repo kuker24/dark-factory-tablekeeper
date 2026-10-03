@@ -201,15 +201,21 @@
   }
 
   function renderGrid(slots, restId) {
-    const grid = $("#availability-grid");
-    const noSlots = $("#no-slots");
-    if (!grid) return;
-    grid.innerHTML = "";
+    const host = $("#availability-host");
+    if (!host) return;
+    host.innerHTML = "";
     if (!slots || slots.length === 0) {
-      if (noSlots) noSlots.hidden = false;
+      const noSlots = document.createElement("div");
+      noSlots.id = "no-slots";
+      noSlots.setAttribute("data-testid", "no-slots");
+      noSlots.textContent = "No slots.";
+      host.appendChild(noSlots);
       return;
     }
-    if (noSlots) noSlots.hidden = true;
+    const grid = document.createElement("div");
+    grid.id = "availability-grid";
+    grid.setAttribute("data-testid", "availability-grid");
+    host.appendChild(grid);
     const rest = restaurantsCache
       ? restaurantsCache.find((r) => r.id === restId)
       : null;
@@ -255,6 +261,7 @@
   function showBookingForm() {
     removeEl("confirmation");
     removeEl("booking-error");
+    removeEl("booking-uncertain");
     let form = $("#booking-form");
     if (!form) {
       const book = $("#book") || document.getElementById("app") || document.body;
@@ -396,8 +403,22 @@
     if (!restId || !date || !ps) return;
     const seq = ++searchSeq;
     const url = `/availability?restaurant_id=${encodeURIComponent(restId)}&date=${encodeURIComponent(date)}&party_size=${ps}`;
-    const r = await api("GET", url);
+    let r = null;
+    let lost = false;
+    try {
+      const resp = await fetch(url, {
+        headers: token() ? { "Authorization": "Bearer " + token() } : {} });
+      let json = null;
+      try { json = await resp.json(); } catch { json = null; }
+      r = { status: resp.status, body: json };
+    } catch (_) {
+      lost = true;
+    }
     if (seq !== searchSeq) return;
+    if (lost) {
+      renderGrid([], restId);
+      return;
+    }
     if (r.status === 200 && r.body) {
       lastSlots = r.body.slots || [];
       renderGrid(lastSlots, restId);
@@ -410,7 +431,6 @@
     const btn = $("#search-button");
     if (!btn) return;
     btn.addEventListener("click", runSearch);
-    $("#restaurant-select").addEventListener("change", runSearch);
   }
 
   function formSignature() {
