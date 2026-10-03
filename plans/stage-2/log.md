@@ -1,1 +1,2 @@
 2026-10-02T23:37:25Z rev db86eb1 REJECT: F1 booking form never visible (#book hidden never cleared); F2 no cells for unavailable tables (data-available=false never emitted); F3 signed-out cell click is a no-op (req 16); F4 >2 table_ids returns validation_failed instead of combination_not_allowed.
+2026-10-03T00:09:14Z rev 4217699 REJECT (harness 25/25 but probes fail): F6 confirmation-tables and reservation-tables testids absent (req 37); F7 lost booking response shows no booking-uncertain and silent auto-retry leaves UI unchanged (req 5). F1-F5 resolved.
