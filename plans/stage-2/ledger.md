@@ -92,6 +92,7 @@ Stage-1 spec remains binding; all stage-1 ledger entries 1–67 still hold unles
 
 ## Status
 
-- [ ] WI-1 dispatched to Coder; Reviewer briefed in parallel.
+- [x] WI-1 complete. Accepted by the Reviewer at revision 52f7051f4e3d5ed1090f82178193b744b42f9d92 (2026-10-03); official check on a fresh clone: "claimed stage: 2 on the shipped checks", stage 1: pass (120/120), stage 2: pass (25/25), highest contiguous stage: 2. Reviewer probes: API 10/10, UI 13/13. All 41 stage-2 entries and 67 stage-1 entries covered; no known gaps.
+- Rejections: 2 — rev db86eb1 (F1 booking form never visible; F2 no data-available=false cells; F3 signed-out click no-op; F4 >2 ids wrong code) plus decision E13 on check order; rev 4217699 (F6 missing confirmation-tables/reservation-tables; F7 no booking-uncertain on lost response). All fixed and verified at 52f7051.
 
 Decision E13 (from Reviewer question, 2026-10-02): unknown table id inside table_ids returns 404 not_found (stage-1 req 46 remains binding: unknown table or table of another restaurant -> 404). Check order: (a) every member exists and belongs to the restaurant, else 404 not_found; (b) at most two tables, else 422 combination_not_allowed; (c) duplicate member, else 422 validation_failed; (d) pair must be listed in combinable, else 422 combination_not_allowed; (e) capacity/occupancy as specified.
