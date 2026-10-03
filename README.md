@@ -8,7 +8,7 @@ and **built entirely by three AI seats in one BAND room**: an Architect, a Coder
 side of the run was a single task message per stage. No code in `stage-N/` was written by a person, and
 nobody nudged, corrected or re-sent anything while the band worked.
 
-> **Submitted run:** 2 of 4 stages accepted by the band and claimed on the shipped checks (stage 3 built but not reviewed when the run ended), 4.5 h unattended, $26.64 of model spend, 3 rejections by the Reviewer — all from 3 task messages.
+> **Submitted run — official harness result: claimed stage 3 (suites 1–3 pass: 120/120, 25/25, 7/7; suite 4 4/6, not fully passed).** The band's Reviewer accepted stages 1–2; stage 3 was committed by the Coder but not reviewed before the run ended (compaction stall). 4.5 h unattended, $26.64 of model spend, 3 rejections by the Reviewer, all from 3 task messages.
 
 ## Results
 
@@ -16,7 +16,7 @@ nobody nudged, corrected or re-sent anything while the band worked.
 |---|---|---|---|---|---|---|---|
 | 1 | Reservations | 05:28 → 06:00 | 32.1 | $7.40 | 1 | claimed 1 · S1 120/120 | 0/25 (not fully passed) |
 | 2 | Online booking and combined tables | 06:01 → 09:01 | 180.1 | $15.23 | 2 | claimed 2 · S1 120/120, S2 25/25 | 0/7 (not fully passed) |
-| 3 | Booking policies, history and recurring reservations | 09:02 → no REPORT (run ended 09:55) | 53.4 | $4.01 | 0 | **in progress, not claimed by the band** (built and handed off by the Coder, never reviewed) · owner evaluation only: S1 120/120, S2 25/25, S3 7/7 | 4/6 (not fully passed) |
+| 3 | Booking policies, history and recurring reservations | 09:02 → no REPORT (run ended 09:55) | 53.4 | $4.01 | 0 | claimed 3 · S1 120/120, S2 25/25, S3 7/7 · **not reviewed by the band** (committed by the Coder, Reviewer stalled before reviewing) | 4/6 (not fully passed) |
 
 Pass counts are from the event harness's shipped checks, run by the owner in **isolated mode** (internal
 network, no outbound access) on a fresh clone after the run. The shipped checks are only part of the
@@ -32,14 +32,13 @@ graded suites. Full outputs: [`docs/test-results/`](docs/test-results/).
 
 ## Status of each stage
 
-- **Stages 1 and 2:** accepted by the Reviewer, reported by the Architect, verified by the owner's isolated check.
-- **Stage 3:** implemented and handed off by the Coder (commit `3c48f77`). The Reviewer's turn was cut off by
-  context compaction before it reviewed it, the room went idle, and the owner timebox ended the run at 09:55 WIB.
-  It is **in progress, not claimed by the band**. Its owner evaluation is in the table above, labelled as such.
-- **What the harness says:** `harness run --all --mode isolated` on this repository reports *claimed stage: 3* on
-  the shipped checks (`docs/test-results/isolated-all.txt`): `stage-3/` passes suites 1-3 (120/120, 25/25, 7/7)
-  and does not fully pass the stage-4 suite (4/6). We report the band's own result as two accepted stages and
-  leave the stage-3 folder exactly as the Coder committed it.
+- **Official result:** `harness run --all --mode isolated` reports **claimed stage 3** on the shipped checks
+  (`docs/test-results/isolated-all.txt`): `stage-3/` passes suites 1–3 (120/120, 25/25, 7/7) and does not fully
+  pass the stage-4 suite (4/6).
+- **Stages 1 and 2:** accepted by the band's Reviewer, reported by the Architect, verified by the owner's isolated check.
+- **Stage 3:** committed by the Coder (`3c48f77`) and handed off, but **not reviewed by the band**: the Reviewer's
+  turn was cut off by context compaction before it reviewed it, the room went idle, and the owner timebox ended the
+  run at 09:55 WIB. The folder is exactly as the Coder committed it.
 
 ## Run a stage
 
@@ -47,19 +46,20 @@ Every stage folder is self-contained: a `Dockerfile`, a `RUN.md` written by the 
 and the Coder's own tests. Each starts without network access and answers its health check within seconds.
 
 ```sh
-cd stage-2                       # or any stage-N
-docker build -t tablekeeper-stage-2 .
-docker run --rm -p 8080:8080 -e PORT=8080 tablekeeper-stage-2
+cd stage-3                       # or any stage-N
+docker build -t tablekeeper-stage-3 .
+docker run --rm -p 8080:8080 -e PORT=8080 tablekeeper-stage-3
 curl -s localhost:8080/health          # {"status":"ok"}
 ```
 
 - [`stage-1/RUN.md`](stage-1/RUN.md) — Reservations
 - [`stage-2/RUN.md`](stage-2/RUN.md) — Online booking and combined tables
+- [`stage-3/RUN.md`](stage-3/RUN.md) — Booking policies, history and recurring reservations
 
 Reproduce the evaluation (needs the event kickoff checkout and Docker):
 
 ```sh
-python -m harness run --track tablekeeper --repo . --stage 2 --mode isolated
+python -m harness run --track tablekeeper --repo . --stage 3 --mode isolated
 python -m harness check --track tablekeeper .
 ```
 
@@ -90,7 +90,7 @@ itself into a loop, the owner conductor and the runaway guard — is described i
 
 | Path | Contents | Written by |
 |---|---|---|
-| `stage-1/` … `stage-2/` | the service, one folder per stage (each a carried-forward, extended copy) | Coder seat |
+| `stage-1/` … `stage-3/` | the service, one folder per stage (each a carried-forward, extended copy) | Coder seat |
 | `plans/` | requirement ledgers, decisions, rejection log, acceptance record | Architect seat |
 | `reviews/` | verification plans, probe suites, verdict reports | Reviewer seat |
 | `room.json` | the BAND room, "Download full session" (two throwaway test tokens replaced with `[REDACTED]`, see `docs/test-results/secret-scan.txt`) | BAND |

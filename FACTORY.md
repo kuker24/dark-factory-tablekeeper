@@ -188,9 +188,9 @@ charged at the full input price (upper bound).
 |---|---|---|---|---|---|---|---|
 | 1 | Reservations | 05:28 → 06:00 | 32.1 | $7.40 | 1 | claimed 1 · S1 120/120 | 0/25 (not fully passed) |
 | 2 | Online booking and combined tables | 06:01 → 09:01 | 180.1 | $15.23 | 2 | claimed 2 · S1 120/120, S2 25/25 | 0/7 (not fully passed) |
-| 3 | Booking policies, history and recurring reservations | 09:02 → no REPORT (run ended 09:55) | 53.4 | $4.01 | 0 | **in progress, not claimed by the band** (built and handed off by the Coder, never reviewed) · owner evaluation only: S1 120/120, S2 25/25, S3 7/7 | 4/6 (not fully passed) |
+| 3 | Booking policies, history and recurring reservations | 09:02 → no REPORT (run ended 09:55) | 53.4 | $4.01 | 0 | claimed 3 · S1 120/120, S2 25/25, S3 7/7 · **not reviewed by the band** (committed by the Coder, Reviewer stalled before reviewing) | 4/6 (not fully passed) |
 
-**Total: 3 stage task(s) posted, 2 stage(s) accepted by the band and claimed by the owner check, 267 min wall-clock, $26.64 model spend, 3 Reviewer rejections.** Run ended by the owner timebox at 09:55 WIB — no seat activity (spend flat at $239.21, no file changes) for 30 min; no message was sent to the room.
+**Official harness result: claimed stage 3 (suites 1–3 pass: 120/120, 25/25, 7/7; suite 4 4/6, not fully passed).** The band's Reviewer accepted stages 1–2; stage 3 was committed by the Coder but not reviewed before the run ended (compaction stall). 3 task messages, 267 min wall-clock, $26.64 model spend, 3 Reviewer rejections. Run ended by the owner timebox at 09:55 WIB — no seat activity (spend flat at $239.21, no file changes) for 30 min; no message was sent to the room.
 
 Per seat (whole run): Coder (MiniMaxAI/MiniMax-M3) $19.34 · Reviewer (deepseek-ai/DeepSeek-V4.1-Flash) $5.05 · Architect (zai-org/GLM-5.3) $2.25
 
@@ -218,8 +218,9 @@ Per seat (whole run): Coder (MiniMaxAI/MiniMax-M3) $19.34 · Reviewer (deepseek-
 - The seat shims are a guard rail, not a sandbox. In the submitted run a seat got past them once (the `jam ...
   room send` gap in §8); a seat could also call the real CLI by absolute path. The room log shows such a post
   under the human account, and its tool calls show which seat sent it, so it is detectable but not prevented.
-- The submitted run delivered two accepted stages. Stage 3 was implemented and handed off but never reviewed,
-  so the band did not claim it; its owner evaluation numbers are reported separately and labelled as such.
+- The official harness claims stage 3 for this repository, but only stages 1 and 2 passed the band's own review.
+  Stage 3 was committed by the Coder and handed off, then never reviewed (compaction stall, §8); its numbers
+  come from the owner's isolated evaluation, not from a Reviewer verdict.
 - The conductor and the guard run on the same machine as the band; they are owner tooling, not seats,
   and never post anything except the per-stage task.
 - Costs are computed from OpenCode's token accounting at Nebius list prices, with cache reads charged at
@@ -249,7 +250,7 @@ repositories and were abandoned for factory reasons; nothing from them is in thi
 |---|---|---|---|---|
 | 1 | `e2081c96` | Stage 1 accepted (39 min, $8.15, 120/120) | At stage 2 the Coder answered the work order with "Acknowledged, starting ..." and ended its turn. The gate dropped the prose, nobody woke the Coder again, and a human nudge is not allowed: a permanent stall. | Gate continuation prompt; mandate rule against announce-and-stop; gate delivers only post-tool-call text. |
 | 2 | `f4e5bd80` | Voided after 50 s | The Architect found attempt 1's repository in the shared working directory and planned to copy its accepted code. Reusing an earlier run defeats the fresh-run rule, so we stopped immediately. | Earlier runs archived outside the seats' working directory; "Fresh work only" rule in every mandate and in the task message. |
-| 3 | `8534579b` | **Submitted.** Stages 1 and 2 accepted by the band; stage 3 built and handed off but not reviewed | Not abandoned. It ended when the Reviewer's turn was cut off by context compaction (§8) and the room stayed idle for 30 min; the owner timebox then stopped the run at 09:55 WIB without posting anything. | Post-run fixes in §12 (not used by this run). |
+| 3 | `8534579b` | **Submitted.** Official harness: claimed stage 3. Stages 1 and 2 accepted by the Reviewer; stage 3 committed by the Coder but not reviewed | Not abandoned. It ended when the Reviewer's turn was cut off by context compaction (§8) and the room stayed idle for 30 min; the owner timebox then stopped the run at 09:55 WIB without posting anything. | Post-run fixes in §12 (not used by this run). |
 
 ## 12. Post-run factory fixes
 

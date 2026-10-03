@@ -1,19 +1,13 @@
-# Walkthrough video — plan and narration script (~3.5 min)
+# Walkthrough video — final cut with voice-over (3:03)
 
-`final-demo.mp4` is the silent, captioned time-lapse cut from the raw recording of BAND Desktop on the
-box. If you want a narrated version, record a voice-over to the script below in any editor; the timings
-match the cut.
+`final-demo.mp4`: captioned time-lapse of the live BAND Desktop recording of the submitted run (room `8534579b`),
+with an English voice-over (edge-tts, en-US-AndrewNeural, loudness-normalised to -16 LUFS).
+A silent version is `final-demo-silent.mp4`.
 
-| Time | On screen | Narration (suggested) |
+| Time | On screen | Narration |
 |---|---|---|
-| 0:00–0:06 | Intro card | "This is Tablekeeper, built by a dark factory: three AI seats in one Band room, and a human who posts one task per stage and nothing else." |
-| 0:06–0:10 | Stage 1 card | "Stage one: the reservations API. One task message, pasted spec, and the official check command." |
-| 0:10–0:52 | Stage 1 time-lapse | "The Architect writes a requirements ledger and sends work orders. The Coder builds; the Reviewer writes its own probes from the spec in parallel. Watch the rejections: the Reviewer finds defects the shipped tests never exercise, and the Coder fixes them, all without us." |
-| 0:52–1:38 | Stage 2 card + time-lapse | "Stage two adds a booking UI. The Reviewer drives it in a headless browser and rejects what doesn't meet the spec: two rejections, then the Coder spends over an hour hunting a timing race in one browser test before it is accepted." |
-| 1:38–2:24 | Stage 3 card + time-lapse | "Stage three: policies, history, recurring series. The Coder builds it in twenty minutes and hands it off. Then the Reviewer's turn is cut off by context compaction, nothing wakes it again, and the room goes quiet. Our timebox ends the run thirty minutes later, without a word into the room. Stage three is built but unreviewed, so we don't claim it." |
-| 2:24–2:32 | Result card | "Two stages accepted, verified by our own isolated check on a fresh clone; four and a half hours, about twenty-seven dollars. The repository has the mandates, the reply gate, the full room log, and an honest list of what broke, including one Coder message that went out under my account, and how we fixed it afterwards." |
-
-Suggested extra shots (optional, record by hand if you want them):
-1. `FACTORY.md` diagram in the GitHub view (5 s).
-2. `docs/test-results/SUMMARY.md` (5 s).
-3. The room in the Band web console, scrolled to one REJECT verdict (5 s).
+| 0:00–0:18 | Intro card | This is Tablekeeper, a restaurant reservation service built by a dark factory: three AI seats working in one BAND room. The human posts one task per stage, and nothing else. What you are watching is the live BAND Desktop recording of the submitted run, sped up. |
+| 0:18–1:04 | Stage 1 card + BAND Desktop time-lapse (46×) | Stage one: the reservations API. The Architect turns the specification into a numbered requirements ledger, and sends work orders to the Coder and the Reviewer. The Coder builds the service, while the Reviewer writes its own probes from the spec, in parallel. Its first verdict is a rejection, for error codes and idempotency scoping that the shipped tests never exercised. The Coder fixes them, and stage one is accepted after thirty-two minutes, with a hundred and twenty out of a hundred and twenty checks passing. |
+| 1:04–1:50 | Stage 2 card + time-lapse (257×) | Stage two adds online booking with combined tables, and a browser interface. The Reviewer drives the interface in a headless browser and rejects it twice: first for missing confirmation details, then for a missing state when a booking's outcome is uncertain. The Coder then spends more than an hour hunting a timing race in a single browser test, running the official check in loops until it passes every time. The Reviewer accepts at nine o'clock: twenty-five out of twenty-five. |
+| 1:50–2:36 | Stage 3 card + time-lapse (76×) | Stage three: booking policies, history, and recurring reservations. The Coder builds it in about twenty minutes and hands it off. Then the Reviewer's turn is cut off by context compaction. Nothing wakes it again, and the room goes quiet. Thirty minutes later, our timebox ends the run, without sending a single message into the room. The official harness claims stage three, with suites one to three all passing. But the band itself never reviewed it, and we say so openly. |
+| 2:36–3:03 | Result card | The result: the official harness claims stage three, and the Reviewer accepted stages one and two. Four and a half hours, about twenty-seven dollars of model spend, three task messages, and no nudges. The repository holds the mandates, the reply gate, the full room log, and an honest record of what broke, including one Coder message that went out under my account, and how we fixed it afterwards. |
