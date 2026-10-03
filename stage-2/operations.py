@@ -520,14 +520,25 @@ def _pair_in_combinable(restaurant: dict, tids: list[str]) -> bool:
     return frozenset(tids) in {frozenset(p) for p in restaurant["combinable"]}
 
 
-def _reservation_payload(res: dict) -> dict:
-    """Serialise a reservation record (E1: ``table_id`` only for singletons)."""
+def _reservation_payload(state, res: dict) -> dict:
+    """Serialise a reservation record (E1: ``table_id`` only for singletons).
+
+    Also includes ``table_labels`` in ``table_ids`` order so the UI can render
+    human-readable table lists (F6: ``confirmation-tables`` /
+    ``reservation-tables``).
+    """
     tids = list(res.get("table_ids") or [])
+    labels: list[str] = []
+    rest = state._restaurants.get(res.get("restaurant_id") or "")
+    if rest is not None:
+        by_id = {t["id"]: t.get("label") or t["id"] for t in rest.get("tables") or []}
+        labels = [by_id.get(tid, tid) for tid in tids]
     out = {
         "reservation_id": res["id"],
         "reference": res["reference"],
         "restaurant_id": res["restaurant_id"],
         "table_ids": tids,
+        "table_labels": labels,
         "party_size": res["party_size"],
         "status": res["status"],
         "starts_at_local": res["starts_at_local"],
@@ -664,7 +675,7 @@ def create_reservation(state, *, user_id: str, body: dict,
         state._reservations[reference] = reservation
         state._reservations_by_user.setdefault(user_id, set()).add(reference)
         state._reservations_by_restaurant.setdefault(rid, set()).add(reference)
-        payload = _reservation_payload(reservation)
+        payload = _reservation_payload(state, reservation)
         _idempotency_store(state, user_id, idempotency_key, "POST /reservations", body, 201, payload)
         return OperationResult(201, payload)
 
@@ -723,7 +734,7 @@ def list_reservations(state, *, user_id: str) -> OperationResult:
             reverse=True,
         )
         return OperationResult(200, {
-            "reservations": [_reservation_payload(state._reservations[ref]) for ref in refs],
+            "reservations": [_reservation_payload(state, state._reservations[ref]) for ref in refs],
         })
 
 
@@ -733,7 +744,7 @@ def get_reservation(state, *, user_id: str, reference: str) -> OperationResult:
         res = state._reservations.get(reference)
         if res is None or res["user_id"] != user_id:
             raise OperationError(404, "not_found", "reservation not found")
-        return OperationResult(200, _reservation_payload(res))
+        return OperationResult(200, _reservation_payload(state, res))
 
 
 def cancel_reservation(state, *, user_id: str, reference: str) -> OperationResult:
@@ -743,10 +754,10 @@ def cancel_reservation(state, *, user_id: str, reference: str) -> OperationResul
         if res is None or res["user_id"] != user_id:
             raise OperationError(404, "not_found", "reservation not found")
         if res["status"] == "cancelled":
-            return OperationResult(200, _reservation_payload(res))
+            return OperationResult(200, _reservation_payload(state, res))
         _check_cutoff(state, res)
         res["status"] = "cancelled"
-        return OperationResult(200, _reservation_payload(res))
+        return OperationResult(200, _reservation_payload(state, res))
 
 
 def patch_reservation(state, *, user_id: str, reference: str,
@@ -823,7 +834,7 @@ def patch_reservation(state, *, user_id: str, reference: str,
         res["starts_at"] = new_start
         res["ends_at"] = new_end
         res["party_size"] = new_party_size
-        return OperationResult(200, _reservation_payload(res))
+        return OperationResult(200, _reservation_payload(state, res))
 
 
 def _has_overlap_excluding(state, rid: str, table_id: str, start: dt.datetime,
@@ -968,7 +979,7 @@ def moves(state, *, user_id: str, body: dict,
         # Build response in input order, including unchanged items.
         output = []
         for ref in refs:
-            output.append(_reservation_payload(state._reservations[ref]))
+            output.append(_reservation_payload(state, state._reservations[ref]))
         payload = {"reservations": output}
         _idempotency_store(state, user_id, idempotency_key, "POST /reservation-moves", body, 201, payload)
         return OperationResult(201, payload)

@@ -310,6 +310,7 @@
 
   function showConfirmation(res) {
     removeEl("booking-error");
+    removeEl("booking-uncertain");
     const book = $("#book") || document.body;
     let conf = $("#confirmation");
     if (!conf) {
@@ -325,25 +326,32 @@
       det.id = "confirmation-details";
       det.setAttribute("data-testid", "confirmation-details");
       conf.appendChild(det);
+      const tabs = document.createElement("div");
+      tabs.id = "confirmation-tables";
+      tabs.setAttribute("data-testid", "confirmation-tables");
+      conf.appendChild(tabs);
       book.appendChild(conf);
     }
     conf.hidden = false;
     const ref = $("#confirmation-reference");
     if (ref) ref.textContent = res.reference || "";
+    const rest = $("#restaurant-select").value;
+    const hhmm = (selectedOption.slot.starts_at_local || "").split("T")[1];
+    const tids = (res.table_ids || (res.table_id ? [res.table_id] : []));
+    const labels = tids.map((t) => labelForTable(rest, t));
     const det = $("#confirmation-details");
     if (det) {
-      const rest = $("#restaurant-select").value;
-      const hhmm = (selectedOption.slot.starts_at_local || "").split("T")[1];
-      const labels = (res.table_ids || (res.table_id ? [res.table_id] : []))
-        .map((t) => labelForTable(rest, t));
       det.textContent =
         `${restNameFor(rest)} · tables ${labels.join(" + ")} · ${hhmm}`;
     }
+    const tabs = $("#confirmation-tables");
+    if (tabs) tabs.textContent = labels.join(" + ");
     lastBookingReference = res.reference;
   }
 
   function showBookingError(code) {
     removeEl("confirmation");
+    removeEl("booking-uncertain");
     const book = $("#book") || document.body;
     let err = $("#booking-error");
     if (!err) {
@@ -354,6 +362,21 @@
     }
     err.textContent = code || "rejected";
     err.hidden = false;
+  }
+
+  function showBookingUncertain(message) {
+    removeEl("confirmation");
+    removeEl("booking-error");
+    const book = $("#book") || document.body;
+    let u = $("#booking-uncertain");
+    if (!u) {
+      u = document.createElement("div");
+      u.id = "booking-uncertain";
+      u.setAttribute("data-testid", "booking-uncertain");
+      book.appendChild(u);
+    }
+    u.textContent = message || "Connection lost. Retrying...";
+    u.hidden = false;
   }
 
   function onPick(slot, options) {
@@ -419,35 +442,60 @@
       name: currentUser() && currentUser().display_name || "",
       email: currentUser() && currentUser().email || "",
     };
-    const r = await api("POST", "/reservations", body, {
-      "Idempotency-Key": idem,
-    });
-    bookingInFlight = false;
-    if (r.status === 201 && r.body && r.body.reference) {
+    let r = null;
+    let lost = false;
+    try {
+      r = await api("POST", "/reservations", body, {
+        "Idempotency-Key": idem,
+      });
+    } catch (_) {
+      lost = true;
+    }
+    if (r && r.status === 201 && r.body && r.body.reference) {
+      bookingInFlight = false;
       showConfirmation(r.body);
       return;
     }
-    if (r.status === 409) {
+    if (r && r.status === 409) {
+      bookingInFlight = false;
       showBookingError("table_unavailable");
       runSearch();
       return;
     }
-    // Replay (200) or other reference-bearing responses — treat as success.
-    if (r.body && r.body.reference) {
+    if (r && r.body && r.body.reference) {
+      // Replay (200) or any other reference-bearing response — success.
+      bookingInFlight = false;
       showConfirmation(r.body);
       return;
     }
-    // Lost-response path — retry with same key + body.
-    const retry = await api("POST", "/reservations", body, {
-      "Idempotency-Key": idem,
-    });
+    if (r && r.body && r.body.error && !lost) {
+      // Confirmed rejection (422 etc) — surface it.
+      bookingInFlight = false;
+      showBookingError(r.body.error.code || "rejected");
+      return;
+    }
+    // Response lost (network error, abort, or empty body) — show uncertain and retry.
+    showBookingUncertain(
+      "Connection lost. The form will retry with the same details.");
+    let retry = null;
+    let lostRetry = false;
+    try {
+      retry = await api("POST", "/reservations", body, {
+        "Idempotency-Key": idem,
+      });
+    } catch (_) {
+      lostRetry = true;
+    }
+    bookingInFlight = false;
     if (retry && retry.body && retry.body.reference) {
       showConfirmation(retry.body);
       return;
     }
     if (retry && retry.body && retry.body.error) {
       showBookingError(retry.body.error.code || "rejected");
+      return;
     }
+    // Retry also lost; keep uncertainty visible so the diner can try again.
   }
 
   function bindBookingForm() {
@@ -472,7 +520,7 @@
     ["reservation-error", "reservation-detail"].forEach(removeEl);
   }
 
-  function showReservationDetail(ref) {
+  function showReservationDetail(ref, body) {
     removeEl("reservation-error");
     const main = $("#app") || document.body;
     let detail = $("#reservation-detail");
@@ -484,6 +532,10 @@
       status.id = "reservation-status";
       status.setAttribute("data-testid", "reservation-status");
       detail.appendChild(status);
+      const tabs = document.createElement("div");
+      tabs.id = "reservation-tables";
+      tabs.setAttribute("data-testid", "reservation-tables");
+      detail.appendChild(tabs);
       const cancel = document.createElement("button");
       cancel.id = "reservation-cancel-button";
       cancel.setAttribute("data-testid", "reservation-cancel-button");
@@ -493,13 +545,23 @@
       main.appendChild(detail);
     }
     detail.hidden = false;
+    const statusEl = $("#reservation-status");
+    if (statusEl) statusEl.textContent = (body && body.status) || "confirmed";
+    const tabs = $("#reservation-tables");
+    if (tabs) {
+      const labels = (body && (body.table_labels ||
+        (body.table_ids || (body.table_id ? [body.table_id] : []))
+          .map((t) => labelForTable(body.restaurant_id, t))
+      )) || [];
+      tabs.textContent = labels.join(" + ");
+    }
     const cancel = $("#reservation-cancel-button");
     if (cancel) {
       cancel.onclick = async () => {
         await api("POST", "/reservations/" + encodeURIComponent(ref) + "/cancel");
         const r2 = await api("GET", "/reservations/" + encodeURIComponent(ref));
-        const statusEl = $("#reservation-status");
-        if (statusEl) statusEl.textContent = (r2.body && r2.body.status) || "cancelled";
+        const s2 = $("#reservation-status");
+        if (s2) s2.textContent = (r2.body && r2.body.status) || "cancelled";
         if (cancel && cancel.parentNode) cancel.remove();
       };
     }
@@ -525,9 +587,7 @@
     if (!ref) return;
     const r = await api("GET", "/reservations/" + encodeURIComponent(ref));
     if (r.status === 200 && r.body && r.body.reference) {
-      showReservationDetail(ref);
-      const statusEl = $("#reservation-status");
-      if (statusEl) statusEl.textContent = r.body.status || "confirmed";
+      showReservationDetail(ref, r.body);
     } else {
       const code = (r.body && r.body.error && r.body.error.code) || "not_found";
       showReservationError(code);
