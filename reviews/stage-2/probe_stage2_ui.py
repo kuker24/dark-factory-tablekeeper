@@ -409,15 +409,33 @@ def p_lost_response_uncertain_then_retry(run):
     page.click(sel("slot-t_2-19:00"))
     page.wait_for_selector(sel("booking-form"))
 
-    state = {"dropped": False}
+    # Drop the initial POST *and* the client's automatic same-key retry, so the
+    # uncertain banner is observable before any successful recovery. The first
+    # request is fetched-then-aborted so the server still commits the booking.
+    state = {"n": 0, "keys": []}
 
     def route_handler(route):
         req = route.request
-        if req.method == "POST" and req.url.rstrip("/").endswith("/reservations") and not state["dropped"]:
-            state["dropped"] = True
-            # Let the server commit, then abort the response delivery.
-            route.fetch()          # server processes the booking
-            route.abort()
+        if req.method == "POST" and req.url.rstrip("/").endswith("/reservations"):
+            state["n"] += 1
+            state["keys"].append(req.headers.get("idempotency-key"))
+            if state["n"] <= 2:
+                # Let the server commit the booking, then drop the response.
+                try:
+                    httpx.post(
+                        base.rstrip("/") + "/reservations",
+                        json=route.request.post_data_json,
+                        headers={
+                            "Authorization": route.request.headers.get("authorization", ""),
+                            "Idempotency-Key": route.request.headers.get("idempotency-key", ""),
+                        },
+                        timeout=5,
+                    )
+                except Exception:
+                    pass
+                route.abort()
+            else:
+                route.continue_()
         else:
             route.continue_()
 
@@ -428,7 +446,7 @@ def p_lost_response_uncertain_then_retry(run):
     assert q(page, "booking-error") is None, "booking-error shown for uncertain outcome"
     assert q(page, "confirmation") is None, "confirmation shown despite lost response"
     assert q(page, "booking-form") is not None, "form disappeared after lost response"
-    # retry unchanged (same key/body) -> original reference
+    # The unchanged form retries with the same idempotency key and body.
     page.unroute("**/reservations")
     page.click(sel("booking-submit"))
     page.wait_for_selector(sel("confirmation"))
@@ -436,6 +454,7 @@ def p_lost_response_uncertain_then_retry(run):
     assert REF.fullmatch(ref), f"reference not exact: {ref!r}"
     assert q(page, "booking-uncertain") is None, "uncertainty not cleared after success"
     assert q(page, "booking-error") is None, "error present after successful retry"
+    page.unroute("**/reservations")
     return "lost response -> uncertain -> same-key retry recovers reference"
 
 
