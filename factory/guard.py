@@ -26,6 +26,11 @@ def log(m):
     open(LOG, "a").write(line + "\n"); print(line, flush=True)
 def spend(since_ms=None):
     c = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+    try:
+        return _spend(c, since_ms)
+    finally:
+        c.close()
+def _spend(c, since_ms):
     q = "select coalesce(sum(json_extract(data,'$.cost')),0) from message where json_extract(data,'$.role')='assistant'"
     if since_ms: q += f" and time_created >= {int(since_ms)}"
     return c.execute(q).fetchone()[0] or 0.0
@@ -46,7 +51,7 @@ def stop(reason):
     sys.exit(2)
 open(f"/tmp/guard-{a.room[:8]}.pid", "w").write(str(os.getpid()))
 log(f"guard start: max {a.max_msgs} texts/{a.window}s, max ${a.max_10min}/10min, cap total ${a.cap_usd} (now ${spend():.2f})")
-fails = 0
+fails = 0; last_ok = 0.0
 while True:
     try:
         n = len(recent_texts()); fails = 0
@@ -54,7 +59,8 @@ while True:
         if n > a.max_msgs: stop(f"{n} text messages in {a.window}s")
         if v10 > a.max_10min: stop(f"${v10:.2f} spent in the last 10 min")
         if tot > a.cap_usd: stop(f"total spend ${tot:.2f} > cap ${a.cap_usd}")
-        if int(time.time()) % 600 < a.poll: log(f"ok: {n} texts/{a.window}s, ${v10:.2f}/10min, total ${tot:.2f}")
+        if time.time() - last_ok >= 600:
+            last_ok = time.time(); log(f"ok: {n} texts/{a.window}s, ${v10:.2f}/10min, total ${tot:.2f}")
     except SystemExit:
         raise
     except Exception as e:

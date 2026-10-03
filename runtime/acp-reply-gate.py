@@ -146,8 +146,11 @@ def agent_to_client():
                 emit(final)                    # only the text after the last tool call, never the narration
             elif lines:
                 log(f"session={sid} tools={ntools} dropped final text ({len(txt)} chars): {txt[:160]!r}")
-                if txt and txt.strip("`*_ .") != "NO_REPLY" and conts.get(sid, 0) < MAX_CONT and "error" not in m:
-                    log(f"session={sid} continuation {conts.get(sid, 0) + 1}/{MAX_CONT}: turn ended with prose")
+                # post-run fix (after attempt 3): a turn that used tools but ended with EMPTY text (e.g. cut off by
+                # context compaction) is continued too, not only prose-ended turns
+                if (txt or ntools) and txt.strip("`*_ .") != "NO_REPLY" and conts.get(sid, 0) < MAX_CONT and "error" not in m:
+                    log(f"session={sid} continuation {conts.get(sid, 0) + 1}/{MAX_CONT}: turn ended with "
+                        + ("prose" if txt else "no text after tool calls"))
                     continue_turn(sid); continue
             emit([pending.pop(sid, ln)]); continue
         emit([ln])

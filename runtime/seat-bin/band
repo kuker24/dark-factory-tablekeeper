@@ -19,6 +19,12 @@ refuse() {
 # subcommand words = first two arguments that are not options (message text cannot shift them)
 words=(); for x in "$@"; do [[ "$x" == -* ]] && continue; words+=("$x"); [ ${#words[@]} -ge 2 ] && break; done
 sub="${words[0]:-} ${words[1]:-}"
+# post-run fix (after attempt 3): option values (e.g. `--session coder`) can shift the words, so look for
+# "room send" anywhere among the first six non-option words.
+w6=(); for x in "$@"; do [[ "$x" == -* ]] && continue; w6+=("$x"); [ ${#w6[@]} -ge 6 ] && break; done
+for ((i=0; i+1<${#w6[@]}; i++)); do
+  [ "${w6[$i]}" = room ] && [ "${w6[$((i+1))]}" = send ] && refuse "band room send"
+done
 case "$sub" in
   "room send") refuse "band room send" ;;
   "send "*|"chat send")

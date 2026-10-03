@@ -4,6 +4,15 @@
 SELF=$(readlink -f "$0")
 REAL=$(PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vx "$(dirname "$SELF")" | paste -sd:) command -v jam)
 args=" $* "
+# post-run fix (after attempt 3): `jam ... room send` is the HUMAN-scoped API even with --session; refuse it always.
+words=(); for x in "$@"; do [[ "$x" == -* ]] && continue; words+=("$x"); [ ${#words[@]} -ge 6 ] && break; done
+for ((i=0; i+1<${#words[@]}; i++)); do
+  if [ "${words[$i]}" = room ] && [ "${words[$((i+1))]}" = send ]; then
+    echo "REFUSED by the seat shim: 'jam room send' posts as the HUMAN owner, even with --session. Nothing was sent." >&2
+    echo "Use: jam --profile default --session <your seat name in lower case> send <room id> --body-file <file>" >&2
+    exit 2
+  fi
+done
 if [[ "$args" == *" send "* && "$args" != *" --session "* && "$args" != *" --session="* ]]; then
   echo "REFUSED by the seat shim: 'jam send' without --session posts as the HUMAN owner. Nothing was sent." >&2
   echo "Use: jam --profile default --session <your seat name in lower case> send <room id> --body-file <file>" >&2
