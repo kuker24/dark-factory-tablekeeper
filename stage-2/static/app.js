@@ -210,16 +210,26 @@
       return;
     }
     if (noSlots) noSlots.hidden = true;
+    const rest = restaurantsCache
+      ? restaurantsCache.find((r) => r.id === restId)
+      : null;
+    const allTables = (rest && rest.tables) ? rest.tables.map((t) => t.id) : [];
     for (const slot of slots) {
       const hhmm = slot.starts_at_local.split("T")[1];
-      for (const table of slot.available_table_ids || []) {
+      const available = new Set(slot.available_table_ids || []);
+      for (const table of allTables) {
+        const isAvail = available.has(table);
         const cell = document.createElement("button");
         cell.type = "button";
-        cell.className = "cell";
+        cell.className = "cell" + (isAvail ? "" : " unavailable");
         cell.setAttribute("data-testid", `slot-${table}-${hhmm}`);
-        cell.setAttribute("data-available", "true");
+        cell.setAttribute("data-available", isAvail ? "true" : "false");
+        if (!isAvail) cell.disabled = true;
         cell.textContent = `${hhmm} · ${table}`;
-        cell.addEventListener("click", () => onPick(slot, [{ table_ids: [table], capacity: null }]));
+        if (isAvail) {
+          cell.addEventListener("click", () =>
+            onPick(slot, [{ table_ids: [table], capacity: null }]));
+        }
         grid.appendChild(cell);
       }
       for (const opt of (slot.available_options || [])) {
@@ -237,28 +247,123 @@
     }
   }
 
-  function onPick(slot, options) {
-    selectedOption = { slot, options };
-    const form = $("#booking-form");
-    if (form) form.hidden = false;
+  function removeEl(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
+
+  function showBookingForm() {
+    removeEl("confirmation");
+    removeEl("booking-error");
+    let form = $("#booking-form");
+    if (!form) {
+      const book = $("#book") || document.getElementById("app") || document.body;
+      const sec = document.createElement("section");
+      sec.id = "book";
+      sec.appendChild(document.createTextNode(""));
+      form = document.createElement("form");
+      form.id = "booking-form";
+      form.setAttribute("data-testid", "booking-form");
+      form.setAttribute("novalidate", "");
+      const idem = document.createElement("input");
+      idem.id = "form-idempotency-key";
+      idem.type = "hidden";
+      form.appendChild(idem);
+      const summary = document.createElement("div");
+      summary.id = "booking-summary";
+      summary.setAttribute("data-testid", "booking-summary");
+      form.appendChild(summary);
+      const lbl = document.createElement("label");
+      lbl.appendChild(document.createTextNode("Party size "));
+      const inp = document.createElement("input");
+      inp.id = "booking-party-size";
+      inp.setAttribute("data-testid", "booking-party-size");
+      inp.type = "number";
+      inp.min = "1";
+      inp.value = String(partySize());
+      lbl.appendChild(inp);
+      form.appendChild(lbl);
+      const btn = document.createElement("button");
+      btn.type = "submit";
+      btn.setAttribute("data-testid", "booking-submit");
+      btn.textContent = "Book";
+      form.appendChild(btn);
+      book.appendChild(sec);
+      sec.appendChild(form);
+      bindBookingForm();
+    }
+    const book = $("#book");
+    if (book) book.hidden = false;
     const summary = $("#booking-summary");
     if (summary) {
-      const hhmm = slot.starts_at_local.split("T")[1];
-      const tids = options[0].table_ids;
-      const labels = tids.map((t) => labelForTable($("#restaurant-select").value, t));
+      const hhmm = selectedOption.slot.starts_at_local.split("T")[1];
+      const tids = selectedOption.options[0].table_ids;
+      const labels = tids.map((t) =>
+        labelForTable($("#restaurant-select").value, t));
       summary.textContent = `${hhmm} · tables ${labels.join(" + ")}`;
     }
     const ps = $("#booking-party-size");
     if (ps) ps.value = String(partySize());
-    if (!$("#form-idempotency-key").value) {
-      $("#form-idempotency-key").value = uuid();
-    }
-    // Clear any prior booking/error UI.
-    const conf = $("#confirmation");
-    if (conf) conf.hidden = true;
-    const err = $("#booking-error");
-    if (err) err.hidden = true;
+    $("#form-idempotency-key").value = uuid();
     lastBookingReference = null;
+  }
+
+  function showConfirmation(res) {
+    removeEl("booking-error");
+    const book = $("#book") || document.body;
+    let conf = $("#confirmation");
+    if (!conf) {
+      conf = document.createElement("div");
+      conf.id = "confirmation";
+      conf.setAttribute("data-testid", "confirmation");
+      const ref = document.createElement("span");
+      ref.id = "confirmation-reference";
+      ref.setAttribute("data-testid", "confirmation-reference");
+      conf.appendChild(document.createTextNode("Reference "));
+      conf.appendChild(ref);
+      const det = document.createElement("div");
+      det.id = "confirmation-details";
+      det.setAttribute("data-testid", "confirmation-details");
+      conf.appendChild(det);
+      book.appendChild(conf);
+    }
+    conf.hidden = false;
+    const ref = $("#confirmation-reference");
+    if (ref) ref.textContent = res.reference || "";
+    const det = $("#confirmation-details");
+    if (det) {
+      const rest = $("#restaurant-select").value;
+      const hhmm = (selectedOption.slot.starts_at_local || "").split("T")[1];
+      const labels = (res.table_ids || (res.table_id ? [res.table_id] : []))
+        .map((t) => labelForTable(rest, t));
+      det.textContent =
+        `${restNameFor(rest)} · tables ${labels.join(" + ")} · ${hhmm}`;
+    }
+    lastBookingReference = res.reference;
+  }
+
+  function showBookingError(code) {
+    removeEl("confirmation");
+    const book = $("#book") || document.body;
+    let err = $("#booking-error");
+    if (!err) {
+      err = document.createElement("div");
+      err.id = "booking-error";
+      err.setAttribute("data-testid", "booking-error");
+      book.appendChild(err);
+    }
+    err.textContent = code || "rejected";
+    err.hidden = false;
+  }
+
+  function onPick(slot, options) {
+    if (!token()) {
+      showAuthError("Please sign in to book.");
+      location.assign("/login");
+      return;
+    }
+    selectedOption = { slot, options };
+    showBookingForm();
   }
 
   async function runSearch() {
@@ -294,34 +399,11 @@
     });
   }
 
-  function showConfirmation(res) {
-    const conf = $("#confirmation");
-    if (!conf) return;
-    conf.hidden = false;
-    const ref = $("#confirmation-reference");
-    if (ref) ref.textContent = res.reference || "";
-    const det = $("#confirmation-details");
-    if (det) {
-      const rest = $("#restaurant-select").value;
-      const hhmm = (selectedOption.slot.starts_at_local || "").split("T")[1];
-      const labels = (res.table_ids || (res.table_id ? [res.table_id] : []))
-        .map((t) => labelForTable(rest, t));
-      det.textContent =
-        `${restNameFor(rest)} · tables ${labels.join(" + ")} · ${hhmm}`;
-    }
-    lastBookingReference = res.reference;
-  }
-
   async function onSubmitBooking(ev) {
     ev.preventDefault();
     if (!token()) {
-      const err = $("#booking-error");
-      if (err) {
-        err.textContent = "Sign in to complete the booking.";
-        err.hidden = false;
-      }
-      const next = $("#login-link");
-      if (next) location.assign("/login");
+      showBookingError("Sign in to complete the booking.");
+      location.assign("/login");
       return;
     }
     if (!selectedOption) return;
@@ -341,44 +423,30 @@
       "Idempotency-Key": idem,
     });
     bookingInFlight = false;
-    const errEl = $("#booking-error");
-    const conf = $("#confirmation");
     if (r.status === 201 && r.body && r.body.reference) {
-      if (errEl) errEl.hidden = true;
-      if (conf) conf.hidden = false;
       showConfirmation(r.body);
-      // Keep the idempotency key so a second submit replays (E5).
       return;
     }
     if (r.status === 409) {
-      if (errEl) {
-        errEl.textContent = "That slot is no longer available.";
-        errEl.hidden = false;
-      }
-      if (conf) conf.hidden = true;
+      showBookingError("table_unavailable");
       runSearch();
       return;
     }
-    // Other errors: lost-response path — retry with same key + body.
-    if (errEl) {
-      errEl.textContent = "Retrying...";
-      errEl.hidden = false;
+    // Replay (200) or other reference-bearing responses — treat as success.
+    if (r.body && r.body.reference) {
+      showConfirmation(r.body);
+      return;
     }
-    const sig = formSignature();
+    // Lost-response path — retry with same key + body.
     const retry = await api("POST", "/reservations", body, {
       "Idempotency-Key": idem,
     });
-    if (retry.status === 201 && retry.body && retry.body.reference) {
-      if (errEl) errEl.hidden = true;
-      if (conf) conf.hidden = false;
+    if (retry && retry.body && retry.body.reference) {
       showConfirmation(retry.body);
       return;
     }
     if (retry && retry.body && retry.body.error) {
-      if (errEl) {
-        errEl.textContent = retry.body.error.code || "rejected";
-        errEl.hidden = false;
-      }
+      showBookingError(retry.body.error.code || "rejected");
     }
   }
 
@@ -400,33 +468,69 @@
 
   /* ---- lookup ------------------------------------------------------- */
 
+  function clearLookupUI() {
+    ["reservation-error", "reservation-detail"].forEach(removeEl);
+  }
+
+  function showReservationDetail(ref) {
+    removeEl("reservation-error");
+    const main = $("#app") || document.body;
+    let detail = $("#reservation-detail");
+    if (!detail) {
+      detail = document.createElement("div");
+      detail.id = "reservation-detail";
+      detail.setAttribute("data-testid", "reservation-detail");
+      const status = document.createElement("div");
+      status.id = "reservation-status";
+      status.setAttribute("data-testid", "reservation-status");
+      detail.appendChild(status);
+      const cancel = document.createElement("button");
+      cancel.id = "reservation-cancel-button";
+      cancel.setAttribute("data-testid", "reservation-cancel-button");
+      cancel.type = "button";
+      cancel.textContent = "Cancel";
+      detail.appendChild(cancel);
+      main.appendChild(detail);
+    }
+    detail.hidden = false;
+    const cancel = $("#reservation-cancel-button");
+    if (cancel) {
+      cancel.onclick = async () => {
+        await api("POST", "/reservations/" + encodeURIComponent(ref) + "/cancel");
+        const r2 = await api("GET", "/reservations/" + encodeURIComponent(ref));
+        const statusEl = $("#reservation-status");
+        if (statusEl) statusEl.textContent = (r2.body && r2.body.status) || "cancelled";
+        if (cancel && cancel.parentNode) cancel.remove();
+      };
+    }
+  }
+
+  function showReservationError(code) {
+    removeEl("reservation-detail");
+    const main = $("#app") || document.body;
+    let err = $("#reservation-error");
+    if (!err) {
+      err = document.createElement("div");
+      err.id = "reservation-error";
+      err.setAttribute("data-testid", "reservation-error");
+      main.appendChild(err);
+    }
+    err.textContent = code || "not_found";
+    err.hidden = false;
+  }
+
   async function lookupSubmit() {
     const ref = $("#lookup-reference-input").value.trim();
-    const detail = $("#reservation-detail");
-    const status = $("#reservation-status");
-    const errEl = $("#reservation-error");
-    if (detail) detail.hidden = true;
-    if (status) status.textContent = "";
-    if (errEl) errEl.hidden = true;
+    clearLookupUI();
     if (!ref) return;
     const r = await api("GET", "/reservations/" + encodeURIComponent(ref));
     if (r.status === 200 && r.body && r.body.reference) {
-      if (status) status.textContent = r.body.status || "confirmed";
-      if (detail) detail.hidden = false;
-      const cancel = $("#reservation-cancel-button");
-      if (cancel) {
-        cancel.onclick = async () => {
-          await api("POST", "/reservations/" + encodeURIComponent(ref) + "/cancel");
-          const r2 = await api("GET", "/reservations/" + encodeURIComponent(ref));
-          if (status) status.textContent = (r2.body && r2.body.status) || "cancelled";
-        };
-      }
+      showReservationDetail(ref);
+      const statusEl = $("#reservation-status");
+      if (statusEl) statusEl.textContent = r.body.status || "confirmed";
     } else {
       const code = (r.body && r.body.error && r.body.error.code) || "not_found";
-      if (errEl) {
-        errEl.textContent = code;
-        errEl.hidden = false;
-      }
+      showReservationError(code);
     }
   }
 

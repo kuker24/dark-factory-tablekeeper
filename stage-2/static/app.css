@@ -94,6 +94,10 @@ button.secondary {
   margin-top: 1rem;
 }
 
+#availability-grid:empty {
+  min-height: 1.5rem;
+}
+
 .slot {
   display: flex;
   justify-content: space-between;

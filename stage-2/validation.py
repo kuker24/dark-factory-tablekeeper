@@ -35,8 +35,8 @@ class MalformedRequest(HttpError):
 class ValidationFailed(HttpError):
     """422 ``validation_failed``. Right type, invalid value."""
 
-    def __init__(self, message: Optional[str] = None):
-        super().__init__(422, "validation_failed", message or "validation failed")
+    def __init__(self, message: Optional[str] = None, *, code: Optional[str] = None):
+        super().__init__(422, code or "validation_failed", message or code or "validation failed")
 
 
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -251,13 +251,14 @@ def check_table_id_or_ids(value: Any) -> list[str]:
         raise MalformedRequest("'table_ids' must be an array")
     if len(raw) == 0:
         raise ValidationFailed("'table_ids' must not be empty")
-    if len(raw) > 2:
-        raise ValidationFailed(
-            "'table_ids' accepts at most two tables in this stage")
     out: list[str] = []
     for entry in raw:
         tid = check_id("table_ids[]", entry)
         out.append(tid)
     if len(set(out)) != len(out):
         raise ValidationFailed("'table_ids' must contain distinct ids")
+    if len(out) > 2:
+        raise ValidationFailed(
+            "'table_ids' accepts at most two tables in this stage",
+            code="combination_not_allowed")
     return out

@@ -808,3 +808,41 @@ def test_combinable_validation_rejects_unknown_table() -> None:
         assert body["error"]["code"] == "validation_failed"
     finally:
         server.shutdown()
+
+
+def test_too_many_table_ids_is_combination_not_allowed() -> None:
+    server, _host, port = _start_server()
+    try:
+        token, rid = _bootstrap_combo(port)
+        conn = HTTPConnection("127.0.0.1", port)
+        status, body = _request(conn, "POST", "/reservations", {
+            "restaurant_id": rid,
+            "table_ids": ["tbl_a", "tbl_b", "tbl_c"],
+            "starts_at_local": "2030-06-04T12:00",
+            "party_size": 2,
+            "name": "X", "email": "x@x.io",
+        }, headers={"Authorization": f"Bearer {token}",
+                   "Idempotency-Key": uuid.uuid4().hex})
+        assert status == 422, body
+        assert body["error"]["code"] == "combination_not_allowed"
+    finally:
+        server.shutdown()
+
+
+def test_pair_with_unknown_member_is_not_found() -> None:
+    server, _host, port = _start_server()
+    try:
+        token, rid = _bootstrap_combo(port)
+        conn = HTTPConnection("127.0.0.1", port)
+        status, body = _request(conn, "POST", "/reservations", {
+            "restaurant_id": rid,
+            "table_ids": ["tbl_a", "tbl_nope"],
+            "starts_at_local": "2030-06-04T12:00",
+            "party_size": 2,
+            "name": "X", "email": "x@x.io",
+        }, headers={"Authorization": f"Bearer {token}",
+                   "Idempotency-Key": uuid.uuid4().hex})
+        assert status == 404, body
+        assert body["error"]["code"] == "not_found"
+    finally:
+        server.shutdown()

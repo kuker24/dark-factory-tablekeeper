@@ -384,7 +384,13 @@ def authenticate(state, token: Optional[str]) -> str:
 def list_restaurants(state) -> OperationResult:
     with state.lock():
         items = [
-            {"id": rid, "name": r["name"], "timezone": r["timezone"]}
+            {
+                "id": rid,
+                "name": r["name"],
+                "timezone": r["timezone"],
+                "tables": list(r["tables"]),
+                "combinable": list(r.get("combinable") or []),
+            }
             for rid, r in state._restaurants.items()
         ]
     return OperationResult(200, {"restaurants": items})
@@ -611,6 +617,9 @@ def create_reservation(state, *, user_id: str, body: dict,
             if table is None:
                 raise OperationError(404, "not_found", "table not in restaurant")
         else:
+            for tid in tids:
+                if _table_for(restaurant, tid) is None:
+                    raise OperationError(404, "not_found", "table not in restaurant")
             if not _pair_in_combinable(restaurant, tids):
                 raise OperationError(422, "combination_not_allowed",
                                      "pair is not declared combinable")
@@ -779,6 +788,9 @@ def patch_reservation(state, *, user_id: str, reference: str,
             if table is None:
                 raise OperationError(404, "not_found", "table not in restaurant")
         else:
+            for tid in new_tids:
+                if _table_for(restaurant, tid) is None:
+                    raise OperationError(404, "not_found", "table not in restaurant")
             if not _pair_in_combinable(restaurant, new_tids):
                 raise OperationError(422, "combination_not_allowed",
                                      "pair is not declared combinable")
@@ -893,6 +905,9 @@ def moves(state, *, user_id: str, body: dict,
                 if table is None:
                     raise OperationError(404, "not_found", "table not in restaurant")
             else:
+                for tid in new_tids:
+                    if _table_for(restaurant, tid) is None:
+                        raise OperationError(404, "not_found", "table not in restaurant")
                 if not _pair_in_combinable(restaurant, new_tids):
                     raise OperationError(422, "combination_not_allowed",
                                          "pair is not declared combinable")
